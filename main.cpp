@@ -60,55 +60,79 @@ void server()
         }
         cout<<"Received a connection from "<<static_cast<char*>(inet_ntoa(remoteAddr.sin_addr) )<<endl;
 
-        //子线程
-        if(!fork() )
-        {
+        //fork add new process to do same thing
+        
+        //if(!fork() )
+       // {
             int rval;
             char buf[MAXSIZE];
             memset(buf,'\0',MAXSIZE);
             if( (rval = read(client_fd, buf, MAXSIZE) ) <0)
             {
-                cout<<"Reading stream error!\n";
+                cerr<<"Reading stream error!\n";
                 continue;
             }
-            cout<<sizeof(buf)<<endl;
-            cout<<buf<<endl;
+            // cout<<sizeof(buf)<<endl;
+            // cout<<buf<<endl;
             string key,value;
             map<string,string> request;
             map<string,string>::iterator iter;
-            bool space_1=true;
-            for(char *c,i=0;i<MAXSIZE;i++){
-                if(buf[i]!=' '&&space_1){
+            bool space_1=true,line_1=true;
+            for(int i=0;i<MAXSIZE;i++){
+                if(buf[i]!='\n'&&line_1){
+                        key+=buf[i];
+                }
+                else if(buf[i]=='\n'&&line_1){
+                    line_1=false;
+                    int pos1,pos2;
+                    pos1=key.find(' ',0);
+                    pos2=key.find(' ',pos1+1);
+                    request.insert(pair<string,string>("METHOD",key.substr(0,pos1)));
+                    request.insert(pair<string,string>("PATH",key.substr(pos1+1,pos2-pos1)));
+                    request.insert(pair<string,string>("PROTOCOL",key.substr(pos2+1,key.size()-pos2)));
+                    key="";
+                }
+    
+                else if((buf[i]!=':')&&space_1){
                     key+=buf[i];
                 }
-                else if(buf[i]=' '&&space_1){
+                else if((buf[i]==':')&&space_1){
                     space_1=false;
                 }
-                else if(buf[i]!='\n'&&(!space_1)){
+                else if((buf[i]!='\n')&&(!space_1)){
                     value+=buf[i];
                 }
                 else{
                     space_1=true;
+                    request.insert(pair<string,string>(key,value));
                     key="";
                     value="";
-                    request.insert(pair<string,string>(key,value));
                 }
             }
-            cout<<"get value is:"<<request["GET"]<<endl;
-            cout<<"iter get :"<<request.begin()->first<<endl;
+            // cout<<"get value is:"<<request["GET"]<<endl;
+            for(iter=request.begin();iter!=request.end();iter++){
+
+                cout<<iter->first<<":"<<iter->second<<endl;
+            }
             //向客户端发送信息
-            // const char* msg = "Hello, I am xiaojian. You are connected !";
-            // if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
-            //     cerr<<"send error!"<<endl;
+            string header="HTTP/1.1 200 OK\r\n";
+             header+="Content-Type:"+request["Accept"]+"\r\n\r\n";
+             cout<<header.c_str()<<endl;
+            const char* msg = "Hello, I am xiaojian. You are connected !";
+            if( send(client_fd, const_cast<char*>(header.c_str()), strlen(msg), 0) == -1)
+            cerr<<"send error!"<<endl;
+            if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
+                cerr<<"send error!"<<endl;
             close(client_fd);
             exit(0);
-        }
+       // }
     }
+    close(client_fd);
 }       
 
 
 int main()
 {
     server();
-    
+    return 0;
 }
