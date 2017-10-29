@@ -114,8 +114,9 @@ void server()
                 
                 cout<<iter->first<<":"<<iter->second<<endl;
             }
-            cout<<"write header: "<<endl;
+            // cout<<"write header: "<<endl;
             //向客户端发送信息
+            request["Accept"]=" text/html";
             string header="HTTP/1.1 200 OK\r\n";
              header+="Content-Type:"+request["Accept"]+"\r\n\r\n";
              cout<<"header:"<<header.c_str()<<endl;
@@ -128,9 +129,18 @@ void server()
                  cerr<<"send error!"<<endl;
                  if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
                      cerr<<"send error!"<<endl;
-                    }
-                    
-                    close(client_fd);
+                     close(client_fd);
+             }
+            else{
+                char * buffer=new char[1024];
+                while(!file1.eof()){
+                    file1.read(buffer,sizeof(buffer));
+                    cout<<buffer;
+                    send(client_fd,const_cast<char*>(buffer),strlen(buffer),0);
+                    memset(buffer,'\0',MAXSIZE);
+                }
+                delete []buffer;
+            }      
             //exit(0);
        // }
     }
