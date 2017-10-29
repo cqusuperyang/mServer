@@ -1,4 +1,5 @@
 #include<iostream>
+#include<fstream>
 #include<stdlib.h> //for exit()
 using namespace std;
 
@@ -109,22 +110,28 @@ void server()
                     value="";
                 }
             }
-            // cout<<"get value is:"<<request["GET"]<<endl;
             for(iter=request.begin();iter!=request.end();iter++){
-
+                
                 cout<<iter->first<<":"<<iter->second<<endl;
             }
+            cout<<"write header: "<<endl;
             //向客户端发送信息
             string header="HTTP/1.1 200 OK\r\n";
              header+="Content-Type:"+request["Accept"]+"\r\n\r\n";
-             cout<<header.c_str()<<endl;
-            const char* msg = "Hello, I am xiaojian. You are connected !";
-            if( send(client_fd, const_cast<char*>(header.c_str()), strlen(msg), 0) == -1)
-            cerr<<"send error!"<<endl;
-            if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
-                cerr<<"send error!"<<endl;
-            close(client_fd);
-            exit(0);
+             cout<<"header:"<<header.c_str()<<endl;
+             fstream file1;
+             file1.open("direct.cpp",ios::binary|ios::in);
+             if(file1.fail()){
+
+                 const char* msg = "404,not find!";
+                 if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
+                 cerr<<"send error!"<<endl;
+                 if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
+                     cerr<<"send error!"<<endl;
+                    }
+                    
+                    close(client_fd);
+            //exit(0);
        // }
     }
     close(client_fd);
