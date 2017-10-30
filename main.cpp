@@ -15,7 +15,7 @@ using namespace std;
 #include<algorithm>
 
 
-void server()
+void server(const char* path)
 {
     const unsigned short SERVERPORT = 53556;
     const int BACKLOG = 10; //10 个最大的连接数
@@ -110,46 +110,52 @@ void server()
                     value="";
                 }
             }
-            for(iter=request.begin();iter!=request.end();iter++){
+            // for(iter=request.begin();iter!=request.end();iter++){
                 
-                cout<<iter->first<<":"<<iter->second<<endl;
-            }
+            //     cout<<iter->first<<":"<<iter->second<<endl;
+            // }
             // cout<<"write header: "<<endl;
             //向客户端发送信息
-            request["Accept"]=" text/html";
-            string header="HTTP/1.1 200 OK\r\n";
-             header+="Content-Type:"+request["Accept"]+"\r\n\r\n";
+           // request["Accept"]=" image/png";
+            string header="HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\n\r\n";
+            // header+="Connection: Keep-Alive"+"\r\n\r\n";
              cout<<"header:"<<header.c_str()<<endl;
              fstream file1;
-             file1.open("direct.cpp",ios::binary|ios::in);
+             file1.open(path,ios::binary|ios::in);
+             if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
+             cerr<<"send error!"<<endl;
              if(file1.fail()){
 
                  const char* msg = "404,not find!";
-                 if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
-                 cerr<<"send error!"<<endl;
                  if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
                      cerr<<"send error!"<<endl;
                      close(client_fd);
              }
             else{
-                char * buffer=new char[1024];
-                while(!file1.eof()){
-                    file1.read(buffer,sizeof(buffer));
-                    cout<<buffer;
-                    send(client_fd,const_cast<char*>(buffer),strlen(buffer),0);
-                    memset(buffer,'\0',MAXSIZE);
-                }
+                char * buffer=new char[MAXSIZE];
+                do{
+                    file1.read(buffer,MAXSIZE);
+                    cout<<"buffer real size:"<<strlen(buffer)<<endl;
+                    if(send(client_fd,const_cast<char*>(buffer),MAXSIZE,0)==-1){
+                        cerr<<"send error!"<<endl;
+                        close(client_fd);
+                        exit(-1);
+                    }
+                   //memset(buffer,'\0',MAXSIZE);
+                }while(!file1.eof());
                 delete []buffer;
+                file1.close();
             }      
             //exit(0);
        // }
+       close(client_fd);
     }
-    close(client_fd);
+    close(sock);
 }       
 
 
 int main()
 {
-    server();
+    server("./static/bd.png");
     return 0;
 }
