@@ -1,20 +1,20 @@
 #ifndef MSERVER_H
 #define MSERVER_H
-
 #include<string>
 
 class Mserver{
 private:
     string path;
-    int port;
-    Response res;
-    Request req;
+    unsigned int port;
+    map<string,string> res;
+    map<string,string> req;
 public:
-    Mserver();
+    Mserver(const char *,unsigned int);
     string getPath();
-    string setPath(string path);
-    int getPort();
-    int setPort(int port);
+    string setPath(const char *);
+    unsigned int getPort();
+    unsigned int setPort(unsigned int );
+    void parseReq(const char *);
     void run();
 };
 
