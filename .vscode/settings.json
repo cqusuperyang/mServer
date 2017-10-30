@@ -3,6 +3,13 @@
         "algorithm": "cpp",
         "iostream": "cpp",
         "iosfwd": "cpp",
-        "__locale": "cpp"
+        "__locale": "cpp",
+        "__config": "cpp",
+        "cstddef": "cpp",
+        "exception": "cpp",
+        "initializer_list": "cpp",
+        "new": "cpp",
+        "stdexcept": "cpp",
+        "typeinfo": "cpp"
     }
 }
