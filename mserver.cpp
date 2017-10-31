@@ -90,34 +90,48 @@ void* Mserver::mthread(void *__this){
         if( (rval = read(_this->client_fd, buf, MAXSIZE) ) <0)
         {
             cerr<<"Reading stream error!\n";
-            ::close(_this->client_fd);           
+                     
         }
         request=parseReq(buf,1024);       
        // string header="HTTP/1.1 200 OK\r\nContentType: text/html\r\n\r\n";
-        string header="HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\n\r\n";
+        string header;
         fstream file1;
         string filepath;
         
         filepath=_this->path+request["Path"];
         // file1.open("./static/a.txt",ios::binary|ios::in);
         file1.open(filepath.c_str(),ios::binary|ios::in);
-
-         if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
-         cerr<<"send error!"<<endl;
-         if(file1.fail()){
-
-             const char* msg = "404,not find!";
-             if( send(_this->client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
-                 cerr<<"send error!"<<endl;
-                 ::close(_this->client_fd);
+        cout<<"path:"<<filepath.c_str()<<endl;
+        cout<<"open:"<<file1.fail()<<endl;
+        if(file1.fail()){
+            
+            const char* msg = "404,not find!";
+            header="HTTP/1.1 404 BAD\r\nContentType: text/html\r\n\r\n";
+            if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
+            cerr<<"send1 error!"<<endl; 
+            if( send(_this->client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
+            cerr<<"send2 error!"<<endl;
+            
          }
-        else{
-            char * buffer=new char[MAXSIZE];
-            do{
+         else{
+            header="HTTP/1.1 200 OK\r\Connection: Keep-Alive\r\n\r\n";
+             char * buffer=new char[MAXSIZE];
+             if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1){
+
+                 cerr<<"send3 error!"<<endl;
+                 delete []buffer;
+                 file1.close();
+                ::close(_this->client_fd);
+                 pthread_exit(0);
+             }
+             do{
                 file1.read(buffer,MAXSIZE);
                 if(send(_this->client_fd,const_cast<char*>(buffer),file1.gcount(),0)==-1){
-                    cerr<<"send error!"<<endl;
-                    ::close(_this->client_fd);                        
+                    cerr<<"send4 error!"<<endl;
+                    delete []buffer;
+                    file1.close();
+                   ::close(_this->client_fd);
+                    pthread_exit(0);                                        
                 }                   
             }while(!file1.eof());
             delete []buffer;
