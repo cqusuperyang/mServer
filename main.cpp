@@ -158,7 +158,7 @@ using namespace std;
 
 int main()
 {
-    Mserver server("./static/bd.png",80);
+    Mserver server;
     server.run();
     server.shutdown();
     return 0;

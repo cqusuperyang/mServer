@@ -40,8 +40,10 @@ unsigned int Mserver::setPort(unsigned int p){
     return port;
 }
 
-void Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024){
-    string key,value;
+map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024){
+    string key,value; 
+    map<string,string> request;
+
     bool space_1=true,line_1=true;
     for(int i=0;i<MAXSIZE;i++){
         if(data[i]!='\n'&&line_1){
@@ -53,8 +55,8 @@ void Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024){
             pos1=key.find(' ',0);
             pos2=key.find(' ',pos1+1);
             request.insert(pair<string,string>("Method",key.substr(0,pos1)));
-            request.insert(pair<string,string>("Path",key.substr(pos1+1,pos2-pos1)));
-            request.insert(pair<string,string>("Protocol",key.substr(pos2+1,key.size()-pos2)));
+            request.insert(pair<string,string>("Path",key.substr(pos1+1,pos2-pos1-1)));
+            request.insert(pair<string,string>("Protocol",key.substr(pos2+1,key.size()-pos2-1)));
             key="";
         }
 
@@ -75,55 +77,59 @@ void Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024){
             value="";
         }
     }
+    return request;
 }
-void Mserver::mthread(int client_fd){
-    pthread_detach(pthread_self());
-
+void* Mserver::mthread(void *__this){
+        pthread_detach(pthread_self());
+        map<string,string> request;
+        Mserver * _this=(Mserver *)__this;
         int rval;
         const int MAXSIZE=1024;
         char buf[MAXSIZE];
         memset(buf,'\0',MAXSIZE);
-        if( (rval = read(client_fd, buf, MAXSIZE) ) <0)
+        if( (rval = read(_this->client_fd, buf, MAXSIZE) ) <0)
         {
             cerr<<"Reading stream error!\n";
-            ::close(client_fd);           
+            ::close(_this->client_fd);           
         }
-               
+        request=parseReq(buf,1024);       
+       // string header="HTTP/1.1 200 OK\r\nContentType: text/html\r\n\r\n";
         string header="HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\n\r\n";
         fstream file1;
         string filepath;
-        filepath=path+"."+request["Path"];
-        file1.open(filepath,ios::binary|ios::in);
-         if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
+        
+        filepath=_this->path+request["Path"];
+        // file1.open("./static/a.txt",ios::binary|ios::in);
+        file1.open(filepath.c_str(),ios::binary|ios::in);
+
+         if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
          cerr<<"send error!"<<endl;
          if(file1.fail()){
 
              const char* msg = "404,not find!";
-             if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
+             if( send(_this->client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
                  cerr<<"send error!"<<endl;
-                 ::close(client_fd);
+                 ::close(_this->client_fd);
          }
         else{
             char * buffer=new char[MAXSIZE];
             do{
                 file1.read(buffer,MAXSIZE);
-                cout<<"buffer real size:"<<strlen(buffer)<<endl;
-                if(send(client_fd,const_cast<char*>(buffer),MAXSIZE,0)==-1){
+                if(send(_this->client_fd,const_cast<char*>(buffer),MAXSIZE,0)==-1){
                     cerr<<"send error!"<<endl;
-                    ::close(client_fd);                        
+                    ::close(_this->client_fd);                        
                 }                   
             }while(!file1.eof());
             delete []buffer;
             file1.close();
         }      
-      ::close(client_fd);
+      ::close(_this->client_fd);
       pthread_exit(0);
 
 }
 void Mserver::run(){
     const int BACKLOG = 10; //10 个最大的连接数
     const int MAXSIZE = 1024;
-    int  client_fd;
     pthread_t newthread;
      sock = socket(AF_INET, SOCK_STREAM, 0);
     if( sock == -1)
@@ -148,19 +154,18 @@ void Mserver::run(){
         exit(1);
     }
 
+    unsigned int sin_size = sizeof(sockaddr_in);
     while(true)
     {
         
-        int client_fd;
-        
-        unsigned int sin_size = sizeof(sockaddr_in);
         if( (client_fd = accept(sock, (sockaddr*)(&remoteAddr), &sin_size)) ==-1 )
         {
             cerr<<"accept error!"<<endl;
             continue;
         }
 
-        if(pthread_create(&newthread,NULL,mthread,client_fd)!=0){
+
+        if(pthread_create(&newthread,NULL,mthread,(void*)this)!=0){
             cerr<<"pthread_create failed"<<endl;
         }
     }
