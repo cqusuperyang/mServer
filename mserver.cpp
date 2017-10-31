@@ -115,7 +115,7 @@ void* Mserver::mthread(void *__this){
             char * buffer=new char[MAXSIZE];
             do{
                 file1.read(buffer,MAXSIZE);
-                if(send(_this->client_fd,const_cast<char*>(buffer),MAXSIZE,0)==-1){
+                if(send(_this->client_fd,const_cast<char*>(buffer),file1.gcount(),0)==-1){
                     cerr<<"send error!"<<endl;
                     ::close(_this->client_fd);                        
                 }                   
