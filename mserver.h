@@ -26,7 +26,7 @@ public:
     static map<string,string> parseReq(const char *,unsigned int);
     void run();
     void shutdown();
-   static void res_404();
+    static void res_404();
     static void res_500();
     static void* mthread(void*);
     
