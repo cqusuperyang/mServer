@@ -99,7 +99,7 @@ void* Mserver::mthread(void *__this){
         string filepath;
         
         filepath=_this->path+request["Path"];
-        filepath=(filepath.compare("./")?filepath:"./index.html");
+        filepath=(filepath.compare("./")==0?filepath:"./index.html");
         // file1.open("./static/a.txt",ios::binary|ios::in);
         file1.open(filepath.c_str(),ios::binary|ios::in);
         cout<<"path:"<<filepath.c_str()<<endl;
