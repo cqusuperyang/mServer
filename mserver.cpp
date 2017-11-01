@@ -99,6 +99,7 @@ void* Mserver::mthread(void *__this){
         string filepath;
         
         filepath=_this->path+request["Path"];
+        filepath=(filepath.compare("./")?filepath:"./index.html");
         // file1.open("./static/a.txt",ios::binary|ios::in);
         file1.open(filepath.c_str(),ios::binary|ios::in);
         cout<<"path:"<<filepath.c_str()<<endl;
@@ -106,7 +107,8 @@ void* Mserver::mthread(void *__this){
         if(file1.fail()){
             
             const char* msg = "404,not find!";
-            header="HTTP/1.1 404 BAD\r\nContentType: text/html\r\n\r\n";
+            //header="HTTP/1.1 404 BAD\r\nContentType: text/html\r\n\r\n";
+            header="HTTP/1.1 404 BAD\r\nServer: Mserverl\r\n\r\n";
             if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
             cerr<<"send1 error!"<<endl; 
             if( send(_this->client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
@@ -114,7 +116,7 @@ void* Mserver::mthread(void *__this){
             
          }
          else{
-            header="HTTP/1.1 200 OK\r\Connection: Keep-Alive\r\n\r\n";
+            header="HTTP/1.1 200 OK\r\nServer: Mserver\r\n\r\n";
              char * buffer=new char[MAXSIZE];
              if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1){
 
