@@ -17,38 +17,38 @@
 
 using namespace std;
 
-Mserver::Mserver(string directory,unsigned int port){
+Mserver::Mserver(string directory,unsigned int port) {
     this->path=directory;
     this->port=port;
 }
 
-string Mserver::getPath(){
+string Mserver::getPath() {
     return path;
 }
 
-string Mserver::setPath(const char * direc){
+string Mserver::setPath(const char * direc) {
     path=direc;
     return path;
 }
 
-unsigned int Mserver::getPort(){
+unsigned int Mserver::getPort() {
     return port;
 }
 
-unsigned int Mserver::setPort(unsigned int p){
+unsigned int Mserver::setPort(unsigned int p) {
     port=p;
     return port;
 }
 
-map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024){
-    string key,value; 
+map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024) {
+    string key,value;
     map<string,string> request;
     bool space_1=true,line_1=true;
-    for(int i=0;i<MAXSIZE;i++){
-        if(data[i]!='\n'&&line_1){
-                key+=data[i];
+    for(int i=0; i<MAXSIZE; i++) {
+        if(data[i]!='\n'&&line_1) {
+            key+=data[i];
         }
-        else if(data[i]=='\n'&&line_1){
+        else if(data[i]=='\n'&&line_1) {
             line_1=false;
             int pos1,pos2;
             pos1=key.find(' ',0);
@@ -58,17 +58,17 @@ map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024)
             request.insert(pair<string,string>("Protocol",key.substr(pos2+1,key.size()-pos2-1)));
             key="";
         }
-        else if((data[i]!=':')&&space_1){
+        else if((data[i]!=':')&&space_1) {
             key+=data[i];
         }
-        else if((data[i]==':')&&space_1){
+        else if((data[i]==':')&&space_1) {
             space_1=false;
             i++;//跳过空格
         }
-        else if((data[i]!='\n')&&(!space_1)){
+        else if((data[i]!='\n')&&(!space_1)) {
             value+=data[i];
         }
-        else{
+        else {
             space_1=true;
             request.insert(pair<string,string>(key,value));
             key="";
@@ -77,51 +77,51 @@ map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024)
     }
     return request;
 }
-void* Mserver::mthread(void *__this){
-        pthread_detach(pthread_self());
-        int rval;
-        const int MAXSIZE=1024;
-        char buf[MAXSIZE];
-        string header;
-        fstream file;
-        string filepath;
-        map<string,string> request;
-        Mserver * _this=(Mserver *)__this;
+void* Mserver::mthread(void *__this) {
+    pthread_detach(pthread_self());
+    int rval;
+    const int MAXSIZE=1024;
+    char buf[MAXSIZE];
+    string header;
+    fstream file;
+    string filepath;
+    map<string,string> request;
+    Mserver * _this=(Mserver *)__this;
+    memset(buf,'\0',MAXSIZE);
+    if( (rval = read(_this->client_fd, buf, MAXSIZE) ) <0) {
+        cerr<<"Reading stream error!\n";
+        _this->res_500();
+    }
+    else {
+        int flag;
+        request=parseReq(buf,1024);
+        filepath=_this->path+(request["Path"].compare("/")==0?"/index.html":request["Path"]);
+        file.open(filepath.c_str(),ios::binary|ios::in);
+        flag=file.fail();
         memset(buf,'\0',MAXSIZE);
-        if( (rval = read(_this->client_fd, buf, MAXSIZE) ) <0){
-            cerr<<"Reading stream error!\n";  
-            _this->res_500();
-        }
-        else{
-            int flag;
-            request=parseReq(buf,1024);       
-            filepath=_this->path+(request["Path"].compare("/")==0?"/index.html":request["Path"]);
-            file.open(filepath.c_str(),ios::binary|ios::in); 
-            flag=file.fail();
-            memset(buf,'\0',MAXSIZE);
-            file.read(buf,MAXSIZE);
-            if(flag||(file.gcount()==0)){
-                _this->res_404();        
-            }else{
-                header="HTTP/1.1 200 OK\r\nServer: Mserver\r\n\r\n";
-                if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1){
-                    cerr<<"send3 error!"<<endl;
+        file.read(buf,MAXSIZE);
+        if(flag||(file.gcount()==0)) {
+            _this->res_404();
+        } else {
+            header="HTTP/1.1 200 OK\r\nServer: Mserver\r\n\r\n";
+            if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1) {
+                cerr<<"send3 error!"<<endl;
+            }
+            do {
+                if(send(_this->client_fd,const_cast<char*>(buf),file.gcount(),0)==-1) {
+                    cerr<<"send4 error!"<<endl;
+                    break;
                 }
-                do{
-                    if(send(_this->client_fd,const_cast<char*>(buf),file.gcount(),0)==-1){
-                        cerr<<"send4 error!"<<endl;
-                        break;                                     
-                    } 
-                    file.read(buf,MAXSIZE);                  
-                }while(!file.eof());
-            }      
-            file.close();
+                file.read(buf,MAXSIZE);
+            } while(!file.eof());
         }
-        ::close(_this->client_fd);
-         pthread_exit(0);
+        file.close();
+    }
+    ::close(_this->client_fd);
+    pthread_exit(0);
 
 }
-void Mserver::run(){
+void Mserver::run() {
     const int BACKLOG = 10; //10 个最大的连接数
     const int MAXSIZE = 1024;
     pthread_t newthread;
@@ -151,7 +151,7 @@ void Mserver::run(){
     unsigned int sin_size = sizeof(sockaddr_in);
     while(true)
     {
-        
+
         if( (client_fd = accept(sock, (sockaddr*)(&remoteAddr), &sin_size)) ==-1 )
         {
             cerr<<"accept error!"<<endl;
@@ -159,31 +159,31 @@ void Mserver::run(){
         }
 
 
-        if(pthread_create(&newthread,NULL,mthread,(void*)this)!=0){
+        if(pthread_create(&newthread,NULL,mthread,(void*)this)!=0) {
             cerr<<"pthread_create failed"<<endl;
         }
     }
-   
-}       
 
-void Mserver::shutdown(){
+}
+
+void Mserver::shutdown() {
     ::close(sock);
 }
 
-void Mserver::res_404(){
+void Mserver::res_404() {
     const char* msg = "404,not find!";
     string header="HTTP/1.1 404 BAD\r\nServer: Mserverl\r\n\r\n";
     if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
-    cerr<<"send1 error!"<<endl; 
+        cerr<<"send1 error!"<<endl;
     if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
-    cerr<<"send2 error!"<<endl;
+        cerr<<"send2 error!"<<endl;
 }
 
-void Mserver::res_500(){
+void Mserver::res_500() {
     const char* msg = "500,server error!";
     string header="HTTP/1.1 500 BAD\r\nServer: Mserverl\r\n\r\n";
     if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
-    cerr<<"send1 error!"<<endl; 
+        cerr<<"send1 error!"<<endl;
     if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
-    cerr<<"send2 error!"<<endl;
+        cerr<<"send2 error!"<<endl;
 }

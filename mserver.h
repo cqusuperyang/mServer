@@ -9,12 +9,12 @@
 
 using namespace std;
 
-class Mserver{
+class Mserver {
 private:
     int sock,client_fd;
     string path;
     unsigned int port;
-   
+
     sockaddr_in myAddr;
     sockaddr_in remoteAddr;
 public:
@@ -31,7 +31,7 @@ public:
     void method_Post();
     static void* mthread(void*);
     static map<string,string> parseReq(const char *,unsigned int);
-    
+
 };
 
 
