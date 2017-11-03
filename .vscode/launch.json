@@ -5,13 +5,13 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/build",
+            "program": "${workspaceRoot}/start",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
             "environment": [],
-            "externalConsole": true,
-            "preLaunchTask": "build",
+            "externalConsole": false,
+            "preLaunchTask": "start",
             "MIMode": "gdb",
             "setupCommands": [
                 {

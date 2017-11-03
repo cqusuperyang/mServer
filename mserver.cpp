@@ -43,7 +43,6 @@ unsigned int Mserver::setPort(unsigned int p){
 map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024){
     string key,value; 
     map<string,string> request;
-
     bool space_1=true,line_1=true;
     for(int i=0;i<MAXSIZE;i++){
         if(data[i]!='\n'&&line_1){
@@ -59,7 +58,6 @@ map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024)
             request.insert(pair<string,string>("Protocol",key.substr(pos2+1,key.size()-pos2-1)));
             key="";
         }
-
         else if((data[i]!=':')&&space_1){
             key+=data[i];
         }
@@ -81,73 +79,53 @@ map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024)
 }
 void* Mserver::mthread(void *__this){
         pthread_detach(pthread_self());
-        map<string,string> request;
-        Mserver * _this=(Mserver *)__this;
         int rval;
         const int MAXSIZE=1024;
         char buf[MAXSIZE];
-        memset(buf,'\0',MAXSIZE);
-        if( (rval = read(_this->client_fd, buf, MAXSIZE) ) <0)
-        {
-            cerr<<"Reading stream error!\n";
-                     
-        }
-        request=parseReq(buf,1024);       
-       // string header="HTTP/1.1 200 OK\r\nContentType: text/html\r\n\r\n";
         string header;
-        fstream file1;
+        fstream file;
         string filepath;
-        
-        filepath=_this->path+request["Path"];
-        filepath=(filepath.compare("./")==0?"./index.html":filepath);
-        // file1.open("./static/a.txt",ios::binary|ios::in);
-        file1.open(filepath.c_str(),ios::binary|ios::in);
-        cout<<"path:"<<filepath.c_str()<<endl;
-        cout<<"open:"<<file1.fail()<<endl;
-        if(file1.fail()){
-            
-            const char* msg = "404,not find!";
-            //header="HTTP/1.1 404 BAD\r\nContentType: text/html\r\n\r\n";
-            header="HTTP/1.1 404 BAD\r\nServer: Mserverl\r\n\r\n";
-            if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
-            cerr<<"send1 error!"<<endl; 
-            if( send(_this->client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
-            cerr<<"send2 error!"<<endl;
-            
-         }
-         else{
-            header="HTTP/1.1 200 OK\r\nServer: Mserver\r\n\r\n";
-             char * buffer=new char[MAXSIZE];
-             if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1){
-
-                 cerr<<"send3 error!"<<endl;
-                 delete []buffer;
-                 file1.close();
-                ::close(_this->client_fd);
-                 pthread_exit(0);
-             }
-             do{
-                file1.read(buffer,MAXSIZE);
-                if(send(_this->client_fd,const_cast<char*>(buffer),file1.gcount(),0)==-1){
-                    cerr<<"send4 error!"<<endl;
-                    delete []buffer;
-                    file1.close();
-                   ::close(_this->client_fd);
-                    pthread_exit(0);                                        
-                }                   
-            }while(!file1.eof());
-            delete []buffer;
-            file1.close();
-        }      
-      ::close(_this->client_fd);
-      pthread_exit(0);
+        map<string,string> request;
+        Mserver * _this=(Mserver *)__this;
+        memset(buf,'\0',MAXSIZE);
+        if( (rval = read(_this->client_fd, buf, MAXSIZE) ) <0){
+            cerr<<"Reading stream error!\n";  
+            _this->res_500();
+        }
+        else{
+            int flag;
+            request=parseReq(buf,1024);       
+            filepath=_this->path+(request["Path"].compare("/")==0?"/index.html":request["Path"]);
+            file.open(filepath.c_str(),ios::binary|ios::in); 
+            flag=file.fail();
+            memset(buf,'\0',MAXSIZE);
+            file.read(buf,MAXSIZE);
+            if(flag||(file.gcount()==0)){
+                _this->res_404();        
+            }else{
+                header="HTTP/1.1 200 OK\r\nServer: Mserver\r\n\r\n";
+                if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1){
+                    cerr<<"send3 error!"<<endl;
+                }
+                do{
+                    if(send(_this->client_fd,const_cast<char*>(buf),file.gcount(),0)==-1){
+                        cerr<<"send4 error!"<<endl;
+                        break;                                     
+                    } 
+                    file.read(buf,MAXSIZE);                  
+                }while(!file.eof());
+            }      
+            file.close();
+        }
+        ::close(_this->client_fd);
+         pthread_exit(0);
 
 }
 void Mserver::run(){
     const int BACKLOG = 10; //10 个最大的连接数
     const int MAXSIZE = 1024;
     pthread_t newthread;
-     sock = socket(AF_INET, SOCK_STREAM, 0);
+    sock = socket(AF_INET, SOCK_STREAM, 0);
     if( sock == -1)
     {
         cerr<<"socket create fail!"<<endl;
@@ -190,4 +168,22 @@ void Mserver::run(){
 
 void Mserver::shutdown(){
     ::close(sock);
+}
+
+void Mserver::res_404(){
+    const char* msg = "404,not find!";
+    string header="HTTP/1.1 404 BAD\r\nServer: Mserverl\r\n\r\n";
+    if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
+    cerr<<"send1 error!"<<endl; 
+    if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
+    cerr<<"send2 error!"<<endl;
+}
+
+void Mserver::res_500(){
+    const char* msg = "500,server error!";
+    string header="HTTP/1.1 500 BAD\r\nServer: Mserverl\r\n\r\n";
+    if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
+    cerr<<"send1 error!"<<endl; 
+    if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
+    cerr<<"send2 error!"<<endl;
 }
