@@ -6,7 +6,10 @@
 3. 不同类型文件传输
 4. 可以考虑线程使用
 
-## webbench test
+## Environment
+>Linux version 3.10.0-514.el7.x86_64 (builder@kbuilder.dev.centos.org) (gcc version 4.8.5 20150623 (Red Hat 4.8.5-11) (GCC) ) #1 SMP Tue Nov 22 16:42:41 UTC 2016
+
+## Webbench test
  > Test result
 
 ``` [root@localhost webbench-1.5]# webbench -c 300 -t 60 http://127.0.0.1/index.html

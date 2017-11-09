@@ -175,16 +175,16 @@ void Mserver::res_404() {
     const char* msg = "404,not find!";
     string header="HTTP/1.1 404 BAD\r\nServer: Mserverl\r\n\r\n";
     if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
-        cerr<<"send1 error!"<<endl;
+        cerr<<"send 404 error!"<<endl;
     if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
-        cerr<<"send2 error!"<<endl;
+        cerr<<"send 404 error!"<<endl;
 }
 
 void Mserver::res_500() {
     const char* msg = "500,server error!";
     string header="HTTP/1.1 500 BAD\r\nServer: Mserverl\r\n\r\n";
     if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
-        cerr<<"send1 error!"<<endl;
+        cerr<<"send 505 error!"<<endl;
     if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
-        cerr<<"send2 error!"<<endl;
+        cerr<<"send 505 error!"<<endl;
 }
