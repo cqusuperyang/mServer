@@ -27,17 +27,17 @@ string Mserver::getPath() {
 }
 
 string Mserver::setPath(const char * direc) {
-    path=direc;
-    return path;
+    this->path=direc;
+    return direc;
 }
 
 unsigned int Mserver::getPort() {
-    return port;
+    return this->port;
 }
 
 unsigned int Mserver::setPort(unsigned int p) {
-    port=p;
-    return port;
+    this->port=p;
+    return p;
 }
 
 map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024) {
@@ -96,6 +96,7 @@ void* Mserver::mthread(void *__this) {
         int flag;
         request=parseReq(buf,1024);
         filepath=_this->path+(request["Path"].compare("/")==0?"/index.html":request["Path"]);
+        cout<<"path visit:"<<filepath<<endl;
         file.open(filepath.c_str(),ios::binary|ios::in);
         flag=file.fail();
         memset(buf,'\0',MAXSIZE);
@@ -122,7 +123,7 @@ void* Mserver::mthread(void *__this) {
 
 }
 void Mserver::run() {
-    const int BACKLOG = 10; //10 个最大的连接数
+    const int BACKLOG =500; //10 个最大的连接数
     const int MAXSIZE = 1024;
     pthread_t newthread;
     sock = socket(AF_INET, SOCK_STREAM, 0);
