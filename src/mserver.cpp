@@ -9,6 +9,7 @@
 #include<sys/socket.h>  //for socket
 #include<string.h> // for bzero
 #include<arpa/inet.h>
+#include <sys/stat.h> 
 
 #include<map>
 #include<algorithm>
@@ -78,6 +79,7 @@ map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024)
     }
     return request;
 }
+
 void* Mserver::mthread(void *client_p) {
     pthread_detach(pthread_self());
     int client=*(int *) client_p;
@@ -87,6 +89,7 @@ void* Mserver::mthread(void *client_p) {
     string header;
     fstream file;
     string filepath;
+    string file_type;
     map<string,string> request;
     memset(buf,'\0',MAXSIZE);
     if( (rval = read(client, buf, MAXSIZE) ) <0) {
@@ -98,35 +101,56 @@ void* Mserver::mthread(void *client_p) {
         int flag;
         request=parseReq(buf,1024);
         filepath=path+(request["Path"].compare("/")==0?"/index.html":request["Path"]);
-        cout<<"path visit:"<<filepath<<endl;
-        file.open(filepath.c_str(),ios::binary|ios::in);
-        flag=file.fail();
-        memset(buf,'\0',MAXSIZE);
-        file.read(buf,MAXSIZE);
-        if(flag||(file.gcount()==0)) {
-            res_404(client);
-        } else {
-            header="HTTP/1.1 200 OK\r\nServer: Mserver\r\n\r\n";
-            if( send(client, const_cast<char*>(header.c_str()), header.size(), 0) == -1) {
-                cerr<<"send3 error!"<<endl;
-            }
-            do {
-                if(send(client,const_cast<char*>(buf),file.gcount(),0)==-1) {
-                    cerr<<"send4 error!"<<endl;
-                    break;
+        //如果是目录请求，则禁止
+        struct stat info;
+        stat(filepath.c_str(), &info);
+        if((filepath.substr(filepath.length() - 1 , 1) == "/") || S_ISDIR(info.st_mode)) {
+            res_403(client);
+        }else{
+            cout<<"path visit:"<<filepath<<endl;
+            file_type = get_file_type(filepath);
+            unsigned int file_size = get_file_size(filepath.c_str());
+            cout<<file_size<<endl;
+            file.open(filepath.c_str(),ios::binary|ios::in);
+            flag=file.fail();
+            memset(buf,'\0',MAXSIZE);
+            if(flag) {
+                cout<<flag<<" "<<file.gcount()<<endl;
+                res_404(client);
+            } else {
+                header="HTTP/1.1 200 OK\r\nServer: Mserver\r\nContent-length: " + int2string(file_size) + "\r\nContent-type: " + file_type + "\r\n\r\n";
+                
+                if( send(client, const_cast<char*>(header.c_str()), header.size(), 0) == -1) {
+                    cerr<<"send3 error!"<<client<<endl;
+                    printf("errno=%d\n",errno);
                 }
-                file.read(buf,MAXSIZE);
-            } while(!file.eof());
+
+                while(!file.eof()){
+                    file.read(buf,MAXSIZE);
+                    if(send(client,const_cast<char*>(buf),file.gcount(),0)==-1) {
+                        cerr<<"send4 error!"<<client<<endl;
+                        printf("errno=%d\n",errno);
+                        break;
+                    }
+                }
+            }
+            file.close();
         }
-        file.close();
     }
+
     ::close(client);
-    delete client_p;
+
+    if (client_p != 0){
+        delete (int *)client_p;
+        client_p = 0;
+    }
+    
     pthread_exit(0);
 
 }
+
 void Mserver::run() {
-    const int BACKLOG =500; //10 个最大的连接数
+    const int BACKLOG =500;
     const int MAXSIZE = 1024;
     pthread_t newthread;
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -165,6 +189,7 @@ void Mserver::run() {
             continue
             ;
         }
+        cout<<"run::accept socket:"<<client_fd<<endl;
         int *client=new int(client_fd);
 
         if(pthread_create(&newthread,NULL,mthread,client)!=0) {
@@ -175,9 +200,29 @@ void Mserver::run() {
 }
 
 void Mserver::shutdown() {
-    ::close(sock);
+    if (sock >= 0){
+        ::close(sock);
+    }
 }
 
+Mserver::~Mserver() {
+	//保证socket能够在异常情况下关闭
+	if (sock >= 0){
+		::close(sock);
+	}
+}
+
+//403:禁止访问
+void Mserver::res_403(int client) {
+    const char* msg = "403,forbidden!";
+    string header="HTTP/1.1 403 FORBIDDEN!\r\nServer: Mserverl\r\n\r\n";
+    if( send(client, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
+        cerr<<"send 403 error!"<<endl;
+    if( send(client, const_cast<char*>(msg), strlen(msg), 0) == -1)
+        cerr<<"send 403 error!"<<endl;
+}
+
+//404：未找到资源
 void Mserver::res_404(int client) {
     const char* msg = "404,not find!";
     string header="HTTP/1.1 404 BAD\r\nServer: Mserverl\r\n\r\n";
@@ -187,6 +232,7 @@ void Mserver::res_404(int client) {
         cerr<<"send 404 error!"<<endl;
 }
 
+//500：服务器错误
 void Mserver::res_500(int client) {
     const char* msg = "500,server error!";
     string header="HTTP/1.1 500 BAD\r\nServer: Mserverl\r\n\r\n";
@@ -195,3 +241,44 @@ void Mserver::res_500(int client) {
     if( send(client, const_cast<char*>(msg), strlen(msg), 0) == -1)
         cerr<<"send 505 error!"<<endl;
 }
+
+//根据文件类型确定http response头中MIME类型
+string Mserver::get_file_type(string filepath){
+    string file_type = "text/plain";
+	string suffixStr = filepath.substr(filepath.find_last_of('.') + 1);//获取文件后缀
+
+    if(suffixStr == "html") file_type = "text/html";
+    else if(suffixStr == "xml") file_type = "text/xml";
+    else if(suffixStr == "gif") file_type = "image/gif";
+    else if(suffixStr == "pdf") file_type = "application/pdf";
+    else if(suffixStr == "jpg") file_type = "image/jpeg";
+    else if(suffixStr == "png") file_type = "image/png";
+    else if(suffixStr == "css") file_type = "text/css";
+    else if(suffixStr == "js") file_type = "application/x-javascript";
+    else if(suffixStr == "json") file_type = "application/json";
+    else if(suffixStr == "gz") file_type = "application/x-gzip";
+
+    return file_type;
+}
+
+//获取文件大小
+unsigned long Mserver::get_file_size(const char *path)  
+{  
+  unsigned long filesize = -1;      
+  struct stat statbuff;  
+  if(stat(path, &statbuff) < 0){  
+      return filesize;  
+  }else{  
+      filesize = statbuff.st_size;  
+  }  
+  return filesize;  
+} 
+
+// 将整数转换为string类型
+string Mserver::int2string(unsigned int n){ 
+	char ss[32];
+	sprintf(ss, "%d", n); 
+	std::string s(ss); 
+
+	return s; 
+} 
