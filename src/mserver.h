@@ -12,23 +12,22 @@ using namespace std;
 class Mserver {
 private:
     int sock,client_fd;
-    string path;
     unsigned int port;
-
     sockaddr_in myAddr;
     sockaddr_in remoteAddr;
 public:
-    Mserver(string directory=".",unsigned int port=8080);
-    string getPath();
-    string setPath(const char *);
+    static string path;
+    Mserver(unsigned int port=8080);
     unsigned int getPort();
     unsigned int setPort(unsigned int );
-    void run();
-    void shutdown();
-    void res_404();
-    void res_500();
     void method_Get();
     void method_Post();
+    void run();
+    void shutdown();
+    static string getPath();
+    static string setPath(const char *);
+    static void res_404(int);
+    static void res_500(int);
     static void* mthread(void*);
     static map<string,string> parseReq(const char *,unsigned int);
 

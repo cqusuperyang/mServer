@@ -17,8 +17,9 @@
 
 using namespace std;
 
-Mserver::Mserver(string directory,unsigned int port) {
-    this->path=directory;
+string Mserver::path=".";
+
+Mserver::Mserver(unsigned int port) {
     this->port=port;
 }
 
@@ -27,7 +28,7 @@ string Mserver::getPath() {
 }
 
 string Mserver::setPath(const char * direc) {
-    this->path=direc;
+    path=direc;
     return direc;
 }
 
@@ -77,8 +78,9 @@ map<string,string> Mserver::parseReq(const char* data,unsigned int MAXSIZE=1024)
     }
     return request;
 }
-void* Mserver::mthread(void *__this) {
+void* Mserver::mthread(void *client_p) {
     pthread_detach(pthread_self());
+    int client=*(int *) client_p;
     int rval;
     const int MAXSIZE=1024;
     char buf[MAXSIZE];
@@ -86,30 +88,30 @@ void* Mserver::mthread(void *__this) {
     fstream file;
     string filepath;
     map<string,string> request;
-    Mserver * _this=(Mserver *)__this;
     memset(buf,'\0',MAXSIZE);
-    if( (rval = read(_this->client_fd, buf, MAXSIZE) ) <0) {
+    if( (rval = read(client, buf, MAXSIZE) ) <0) {
         cerr<<"Reading stream error!\n";
-        _this->res_500();
+        perror("reading error");
+        //res_500(client);
     }
     else {
         int flag;
         request=parseReq(buf,1024);
-        filepath=_this->path+(request["Path"].compare("/")==0?"/index.html":request["Path"]);
+        filepath=path+(request["Path"].compare("/")==0?"/index.html":request["Path"]);
         cout<<"path visit:"<<filepath<<endl;
         file.open(filepath.c_str(),ios::binary|ios::in);
         flag=file.fail();
         memset(buf,'\0',MAXSIZE);
         file.read(buf,MAXSIZE);
         if(flag||(file.gcount()==0)) {
-            _this->res_404();
+            res_404(client);
         } else {
             header="HTTP/1.1 200 OK\r\nServer: Mserver\r\n\r\n";
-            if( send(_this->client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1) {
+            if( send(client, const_cast<char*>(header.c_str()), header.size(), 0) == -1) {
                 cerr<<"send3 error!"<<endl;
             }
             do {
-                if(send(_this->client_fd,const_cast<char*>(buf),file.gcount(),0)==-1) {
+                if(send(client,const_cast<char*>(buf),file.gcount(),0)==-1) {
                     cerr<<"send4 error!"<<endl;
                     break;
                 }
@@ -118,7 +120,8 @@ void* Mserver::mthread(void *__this) {
         }
         file.close();
     }
-    ::close(_this->client_fd);
+    ::close(client);
+    delete client_p;
     pthread_exit(0);
 
 }
@@ -144,6 +147,8 @@ void Mserver::run() {
 
     //listen
     if(listen(sock, BACKLOG) == -1)
+
+    
     {
         cerr<<"listen error"<<endl;
         exit(1);
@@ -156,11 +161,13 @@ void Mserver::run() {
         if( (client_fd = accept(sock, (sockaddr*)(&remoteAddr), &sin_size)) ==-1 )
         {
             cerr<<"accept error!"<<endl;
-            continue;
+            perror("accept");
+            continue
+            ;
         }
+        int *client=new int(client_fd);
 
-
-        if(pthread_create(&newthread,NULL,mthread,(void*)this)!=0) {
+        if(pthread_create(&newthread,NULL,mthread,client)!=0) {
             cerr<<"pthread_create failed"<<endl;
         }
     }
@@ -171,20 +178,20 @@ void Mserver::shutdown() {
     ::close(sock);
 }
 
-void Mserver::res_404() {
+void Mserver::res_404(int client) {
     const char* msg = "404,not find!";
     string header="HTTP/1.1 404 BAD\r\nServer: Mserverl\r\n\r\n";
-    if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
+    if( send(client, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
         cerr<<"send 404 error!"<<endl;
-    if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
+    if( send(client, const_cast<char*>(msg), strlen(msg), 0) == -1)
         cerr<<"send 404 error!"<<endl;
 }
 
-void Mserver::res_500() {
+void Mserver::res_500(int client) {
     const char* msg = "500,server error!";
     string header="HTTP/1.1 500 BAD\r\nServer: Mserverl\r\n\r\n";
-    if( send(client_fd, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
+    if( send(client, const_cast<char*>(header.c_str()), header.size(), 0) == -1)
         cerr<<"send 505 error!"<<endl;
-    if( send(client_fd, const_cast<char*>(msg), strlen(msg), 0) == -1)
+    if( send(client, const_cast<char*>(msg), strlen(msg), 0) == -1)
         cerr<<"send 505 error!"<<endl;
 }
